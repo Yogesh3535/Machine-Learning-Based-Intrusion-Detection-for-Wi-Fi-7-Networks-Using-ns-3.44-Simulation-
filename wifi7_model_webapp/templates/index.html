@@ -1,0 +1,225 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WiFi-7 Attack Detection</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a2d;
+      --panel2: #18223a;
+      --text: #eef3ff;
+      --muted: #9eabc5;
+      --accent: #6ea8fe;
+      --accent2: #8b5cf6;
+      --good: #34d399;
+      --warn: #fbbf24;
+      --danger: #fb7185;
+      --border: rgba(255,255,255,.09);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: Inter, Arial, sans-serif; color: var(--text);
+      background: radial-gradient(circle at 20% 0%, #1b2c55 0, var(--bg) 40%);
+    }
+    .container { max-width: 1250px; margin: auto; padding: 28px; }
+    header { display:flex; justify-content:space-between; gap:20px; align-items:center; margin-bottom:24px; }
+    h1 { margin:0; font-size:30px; }
+    .subtitle { color:var(--muted); margin-top:7px; }
+    .badge { padding:8px 12px; border:1px solid var(--border); border-radius:999px; background:#10182b; color:#b9ccff; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:20px; }
+    .card {
+      background: rgba(18,26,45,.88); border:1px solid var(--border); border-radius:18px;
+      padding:20px; box-shadow:0 16px 50px rgba(0,0,0,.22);
+    }
+    .card h2 { margin:0 0 16px; font-size:19px; }
+    .inputs { display:grid; grid-template-columns:1fr 1fr; gap:13px; }
+    label { display:block; color:var(--muted); font-size:12px; margin-bottom:6px; }
+    input {
+      width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--border);
+      background:#0d1527; color:var(--text); outline:none;
+    }
+    input:focus { border-color:var(--accent); }
+    .actions { display:flex; gap:10px; margin-top:16px; }
+    button {
+      border:0; border-radius:10px; padding:12px 18px; cursor:pointer; font-weight:700;
+      background:linear-gradient(135deg,var(--accent),var(--accent2)); color:white;
+    }
+    button.secondary { background:#202c47; color:#dbe5ff; }
+    .result {
+      padding:20px; border-radius:14px; background:var(--panel2); margin-bottom:18px;
+      border:1px solid var(--border);
+    }
+    .result-label { font-size:30px; font-weight:800; text-transform:capitalize; }
+    .small { color:var(--muted); font-size:12px; }
+    .chart-wrap { height:360px; }
+    .full { grid-column:1 / -1; }
+    .table { width:100%; border-collapse:collapse; }
+    .table th,.table td { padding:10px; border-bottom:1px solid var(--border); text-align:left; }
+    .table th { color:var(--muted); font-size:12px; }
+    .bar-row { margin:10px 0; }
+    .bar-head { display:flex; justify-content:space-between; font-size:13px; }
+    .bar { height:9px; border-radius:10px; background:#27334e; overflow:hidden; margin-top:5px; }
+    .fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); }
+    .error { color:#fecaca; background:#3b1620; padding:12px; border-radius:10px; display:none; margin-top:12px; }
+    .hint { color:var(--muted); font-size:12px; line-height:1.5; margin-top:14px; }
+    @media(max-width:850px){ .grid{grid-template-columns:1fr}.full{grid-column:auto}.inputs{grid-template-columns:1fr} header{align-items:flex-start;flex-direction:column} }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>WiFi-7 Attack Detection Dashboard</h1>
+      <div class="subtitle">Enter network metrics → LightGBM model → prediction + probability visualization</div>
+    </div>
+    <div class="badge">12 input features · 9 classes</div>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <h2>① Model Input</h2>
+      <div class="inputs" id="inputs">
+        <div><label>Distance</label><input id="Distance" type="number" value="10" step="any"></div>
+        <div><label>Stations</label><input id="Stations" type="number" value="20" step="any"></div>
+        <div><label>MCS</label><input id="MCS" type="number" value="7" step="any"></div>
+        <div><label>Channel Width</label><input id="ChannelWidth" type="number" value="80" step="any"></div>
+        <div><label>GI</label><input id="GI" type="number" value="3200" step="any"></div>
+        <div><label>Throughput</label><input id="Throughput" type="number" value="302.8" step="any"></div>
+        <div><label>Tx Packets</label><input id="TxPackets" type="number" value="1593759" step="any"></div>
+        <div><label>Rx Packets</label><input id="RxPackets" type="number" value="540716" step="any"></div>
+        <div><label>Lost Packets</label><input id="LostPackets" type="number" value="16" step="any"></div>
+        <div><label>Packet Loss Rate</label><input id="PacketLossRate" type="number" value="0.00069" step="any"></div>
+        <div><label>Delay</label><input id="Delay" type="number" value="20" step="any"></div>
+        <div><label>Jitter</label><input id="Jitter" type="number" value="0" step="any"></div>
+      </div>
+      <div class="actions">
+        <button onclick="predict()">Run Prediction</button>
+        <button class="secondary" onclick="resetForm()">Reset</button>
+      </div>
+      <div class="error" id="error"></div>
+      <div class="hint">
+        The fields match the features used by your uploaded LightGBM model. The notebook removed
+        PayloadSize and LoadFactor, leaving these 12 features.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>② Model Output</h2>
+      <div class="result">
+        <div class="small">Predicted class</div>
+        <div class="result-label" id="prediction">Run the model</div>
+        <div class="small" id="predictionId">No prediction yet</div>
+      </div>
+      <div class="chart-wrap"><canvas id="probChart"></canvas></div>
+    </section>
+
+    <section class="card full">
+      <h2>③ Probability Breakdown</h2>
+      <div id="probabilities">
+        <div class="small">Run a prediction to see the class probability distribution.</div>
+      </div>
+    </section>
+
+    <section class="card full">
+      <h2>④ Input Snapshot</h2>
+      <table class="table">
+        <thead><tr><th>Feature</th><th>Value</th></tr></thead>
+        <tbody id="inputTable"></tbody>
+      </table>
+    </section>
+  </div>
+</div>
+
+<script>
+let chart;
+
+const featureNames = [
+  "Distance","Stations","MCS","ChannelWidth","GI","Throughput",
+  "TxPackets","RxPackets","LostPackets","PacketLossRate","Delay","Jitter"
+];
+
+function collectInputs() {
+  const data = {};
+  featureNames.forEach(f => data[f] = Number(document.getElementById(f).value));
+  return data;
+}
+
+async function predict() {
+  const error = document.getElementById("error");
+  error.style.display = "none";
+
+  try {
+    const response = await fetch("/predict", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(collectInputs())
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Prediction failed");
+
+    document.getElementById("prediction").textContent = result.prediction.replaceAll("_", " ");
+    document.getElementById("predictionId").textContent = "Class ID: " + result.prediction_id;
+
+    renderProbabilities(result.probabilities);
+    renderInputs(result.inputs);
+  } catch (e) {
+    error.textContent = e.message;
+    error.style.display = "block";
+  }
+}
+
+function renderProbabilities(items) {
+  const box = document.getElementById("probabilities");
+  box.innerHTML = items.map(([label, value]) => `
+    <div class="bar-row">
+      <div class="bar-head"><span>${label.replaceAll("_"," ")}</span><b>${value.toFixed(3)}%</b></div>
+      <div class="bar"><div class="fill" style="width:${Math.max(0, Math.min(100, value))}%"></div></div>
+    </div>
+  `).join("");
+
+  const labels = items.map(x => x[0].replaceAll("_"," "));
+  const values = items.map(x => x[1]);
+
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById("probChart"), {
+    type: "bar",
+    data: { labels, datasets: [{ label: "Probability (%)", data: values, borderRadius: 8 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero:true, max:100, ticks:{color:"#9eabc5"}, grid:{color:"rgba(255,255,255,.07)"} },
+        x: { ticks:{color:"#9eabc5"}, grid:{display:false} }
+      },
+      plugins: { legend:{labels:{color:"#eef3ff"}} }
+    }
+  });
+}
+
+function renderInputs(data) {
+  document.getElementById("inputTable").innerHTML = Object.entries(data)
+    .map(([k,v]) => `<tr><td>${k}</td><td>${Number(v).toLocaleString()}</td></tr>`).join("");
+}
+
+function resetForm() {
+  const defaults = {
+    Distance:10, Stations:20, MCS:7, ChannelWidth:80, GI:3200,
+    Throughput:302.8, TxPackets:1593759, RxPackets:540716,
+    LostPackets:16, PacketLossRate:0.00069, Delay:20, Jitter:0
+  };
+  Object.entries(defaults).forEach(([k,v]) => document.getElementById(k).value = v);
+  document.getElementById("prediction").textContent = "Run the model";
+  document.getElementById("predictionId").textContent = "No prediction yet";
+  document.getElementById("probabilities").innerHTML =
+    '<div class="small">Run a prediction to see the class probability distribution.</div>';
+  document.getElementById("inputTable").innerHTML = "";
+  if (chart) { chart.destroy(); chart = null; }
+}
+
+predict();
+</script>
+</body>
+</html>
