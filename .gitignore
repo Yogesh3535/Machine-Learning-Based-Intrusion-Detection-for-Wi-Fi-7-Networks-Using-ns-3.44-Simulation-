@@ -1,6 +1,21 @@
-.venv/
-venv/
+# ns-3 generated build files
+ns-3.44/build/
+ns-3.44/cmake-cache/
+
+# Python
 __pycache__/
 *.pyc
+.venv/
+venv/
+
+# Environment / secrets
 .env
+
+# Logs
 *.log
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
