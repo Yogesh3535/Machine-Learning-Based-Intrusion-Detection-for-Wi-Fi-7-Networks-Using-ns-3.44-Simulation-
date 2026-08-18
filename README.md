@@ -652,13 +652,3 @@ This project is intended for academic and research purposes.
 The reported machine learning performance is based on a simulation-generated dataset and should not be interpreted as real-world Wi-Fi 7 intrusion detection accuracy without further validation using physical Wi-Fi 7 deployments.
 
 ---
-
-# License
-
-Add the license selected for this repository.
-
-For example:
-
-    MIT License
-
-or use another license appropriate for your project.
